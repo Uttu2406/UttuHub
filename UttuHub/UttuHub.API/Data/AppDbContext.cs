@@ -17,16 +17,14 @@ namespace UttuHub.API.Data
 
 
         // OnModelCreating (Optional re so pasted from Gemini)
-        // This is where you can manually tell EF how to handle the relationship if it gets confused.
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-
             // This ensures that if you delete a Category, it doesn't accidentally crash the database if it has FeedItems.
             modelBuilder.Entity<FeedItem>()
-                .HasOne(f => f.Category).WithMany(c => c.FeedItems)
-                .HasForeignKey(f => f.CategoryId).OnDelete(DeleteBehavior.Restrict);
+                .HasOne(f => f.Category).WithMany(c => c.FeedItems) // Every feed belongs to one cat and one cat can have many feeds
+                .HasForeignKey(f => f.CategoryId) // Feed has a foreign key in category class
+                .OnDelete(DeleteBehavior.Restrict); // Stops deletion of category if it has feed items
         }
     }
 }
-
