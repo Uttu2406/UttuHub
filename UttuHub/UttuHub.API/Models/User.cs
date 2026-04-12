@@ -14,8 +14,13 @@ namespace UttuHub.API.Models
         [Required]
         public string PasswordHash { get; set; } = string.Empty;
 
+        [Required]
         public string? Email { get; set; }
+
         public string? ImageUrl { get; set; }
+
+        [Required]
+        public bool isVerified { get; set; } = false;
 
 
         [JsonIgnore]

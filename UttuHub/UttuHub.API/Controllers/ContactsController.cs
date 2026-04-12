@@ -49,7 +49,7 @@ namespace UttuHub.API.Controllers
                 return NotFound();
             }
 
-            contact.IsApproved = true;
+            contact.IsApproved = false;
             _context.Entry(contact).State = EntityState.Modified;
 
             await _context.SaveChangesAsync();
