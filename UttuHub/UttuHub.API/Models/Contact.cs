@@ -1,4 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace UttuHub.API.Models
 {
@@ -23,6 +25,13 @@ namespace UttuHub.API.Models
         public bool IsApproved { get; set; } = false;
 
         public DateTime SentAt { get; set; } = DateTime.UtcNow; // Automatically set to current time when created
+
+
+        [Required]
+        public int UserId { get; set; }
+        [ForeignKey("UserId")]
+        [JsonIgnore]
+        public User? User { get; set; }
 
     }
 }

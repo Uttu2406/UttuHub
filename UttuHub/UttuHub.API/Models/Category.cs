@@ -16,9 +16,10 @@ namespace UttuHub.API.Models
         public string? HexColor { get; set; }
 
 
+        [Required]
         [JsonIgnore]
-        public ICollection<FeedItem>? FeedItems { get; set; }
-
+        public ICollection<FeedItemCategory> FeedItemCategories { get; set; } = new List<FeedItemCategory>();
     }
+
 }
 

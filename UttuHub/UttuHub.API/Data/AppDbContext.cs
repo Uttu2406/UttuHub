@@ -16,15 +16,37 @@ namespace UttuHub.API.Data
         public DbSet<User> Users { get; set; }
 
 
-        // OnModelCreating (Optional re so pasted from Gemini)
+        // NEW: Junction table for many-to-many (Copied from Gemini cause bro wut 0_0)
+        public DbSet<FeedItemCategory> FeedItemCategories { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            // This ensures that if you delete a Category, it doesn't accidentally crash the database if it has FeedItems.
+
+            // 1. Configure Composite Key for the Many-to-Many Junction Table
+            modelBuilder.Entity<FeedItemCategory>()
+                .HasKey(fc => new { fc.FeedItemId, fc.CategoryId });
+
+            // 2. Configure the relationship: FeedItem -> FeedItemCategory
+            modelBuilder.Entity<FeedItemCategory>()
+                .HasOne(fc => fc.FeedItem)
+                .WithMany(f => f.FeedItemCategories)
+                .HasForeignKey(fc => fc.FeedItemId);
+
+            // 3. Configure the relationship: Category -> FeedItemCategory
+            modelBuilder.Entity<FeedItemCategory>()
+                .HasOne(fc => fc.Category)
+                .WithMany(c => c.FeedItemCategories)
+                .HasForeignKey(fc => fc.CategoryId);
+
+            // 4. Existing User Relationships (One-to-Many)
             modelBuilder.Entity<FeedItem>()
-                .HasOne(f => f.Category).WithMany(c => c.FeedItems) // Every feed belongs to one cat and one cat can have many feeds
-                .HasForeignKey(f => f.CategoryId) // Feed has a foreign key in category class
-                .OnDelete(DeleteBehavior.Restrict); // Stops deletion of category if it has feed items
+                .HasOne(f => f.User)
+                .WithMany(u => u.FeedItems)
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
+
     }
 }
+

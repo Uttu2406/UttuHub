@@ -31,5 +31,9 @@ namespace UttuHub.API.Models
         public ICollection<FeedItem>? FeedItems { get; set; }
 
 
+        [JsonIgnore]
+        public ICollection<Contact>? Contacts { get; set; }
+
+
     }
 }

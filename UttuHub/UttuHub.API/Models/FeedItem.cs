@@ -19,9 +19,8 @@ namespace UttuHub.API.Models
 
 
         [Required]
-        public int CategoryId { get; set; }
-        [ForeignKey("CategoryId")]
-        public Category? Category { get; set; }
+        [JsonIgnore]
+        public ICollection<FeedItemCategory> FeedItemCategories { get; set; } = new List<FeedItemCategory>();
 
 
         [Required]

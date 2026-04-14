@@ -31,7 +31,7 @@ namespace UttuHub.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
         {
-            return await _context.Categories.ToListAsync(); // fetch and store in a list.
+            return await _context.Categories.ToListAsync(); // Simple list fetch - JsonIgnore in the model handles the rest
         }
 
         // UC 203 - Update Category

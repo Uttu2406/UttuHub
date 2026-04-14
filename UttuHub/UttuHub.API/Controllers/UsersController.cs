@@ -71,6 +71,41 @@ namespace UttuHub.API.Controllers
         }
 
 
+        // UC 214 - Get Single User Profile
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetUser(int id)
+        {
+            var user = await _context.Users
+                .Select(u => new {
+                    u.Id,
+                    u.Name,
+                    u.Email,
+                    u.ImageUrl,
+                    u.isVerified
+                })
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (user == null) return NotFound("User not found.");
+
+            return Ok(user);
+        }
+
+        // UC 215 - Get all Category (Added this for the user list)
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<object>>> GetUsers()
+        {
+            return await _context.Users
+                .Select(u => new {
+                    u.Id,
+                    u.Name,
+                    u.Email,
+                    u.ImageUrl,
+                    u.isVerified
+                })
+                .ToListAsync();
+        }
+
+
         // JWT Generator
         private string GenerateJwtToken(User user)
         {
