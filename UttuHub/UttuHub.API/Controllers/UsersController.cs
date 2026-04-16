@@ -90,7 +90,7 @@ namespace UttuHub.API.Controllers
             return Ok(user);
         }
 
-        // UC 215 - Get all Category (Added this for the user list)
+        // UC 215 - Get all Users 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetUsers()
         {

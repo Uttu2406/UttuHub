@@ -23,7 +23,16 @@ namespace UttuHub.API.Controllers
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetProjects), new { id = project.Id }, project);
+            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project); // ✅ Fixed: was nameof(GetProjects)
+        }
+
+        // UC 231.1 - Get single Project by ID (required for CreatedAtAction)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Project>> GetProject(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+            return project;
         }
 
         // UC 232 - GET all Projects
@@ -76,7 +85,7 @@ namespace UttuHub.API.Controllers
             _context.Projects.Remove(project);
             await _context.SaveChangesAsync();
 
-            return NoContent(); 
+            return NoContent();
         }
     }
 }

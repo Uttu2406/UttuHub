@@ -45,7 +45,36 @@ namespace UttuHub.API.Controllers
                 CategoryCount = dto.CategoryIds?.Count ?? 0
             };
 
-            return CreatedAtAction(nameof(PostFeedItem), new { id = feedItem.Id }, result);
+            return CreatedAtAction(nameof(GetFeedItem), new { id = feedItem.Id }, result); // ✅ Fixed: was nameof(PostFeedItem)
+        }
+
+        // UC 221.1 - Get single FeedItem by ID (required for CreatedAtAction)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<object>> GetFeedItem(int id)
+        {
+            var f = await _context.FeedItems
+                .Include(f => f.FeedItemCategories)
+                    .ThenInclude(fc => fc.Category)
+                .FirstOrDefaultAsync(f => f.Id == id);
+
+            if (f == null) return NotFound();
+
+            return new
+            {
+                f.Id,
+                f.Title,
+                f.Content,
+                f.ImageUrl,
+                f.Created,
+                f.IsHighlight,
+                f.UserId,
+                Categories = f.FeedItemCategories.Select(fc => new {
+                    fc.Category!.Id,
+                    fc.Category.Name,
+                    fc.Category.HexColor,
+                    fc.Category.IconKey
+                }).ToList()
+            };
         }
 
         // UC 222 - Read all FeedItems (Including Categories)
@@ -64,7 +93,7 @@ namespace UttuHub.API.Controllers
                     f.Created,
                     f.IsHighlight,
                     f.UserId,
-                    
+
                     Categories = f.FeedItemCategories.Select(fc => new {
                         fc.Category!.Id,
                         fc.Category.Name,
