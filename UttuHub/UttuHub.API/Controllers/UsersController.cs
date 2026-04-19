@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using UttuHub.API.Data;
+using UttuHub.API.DTOs.User;
 using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
@@ -23,16 +24,23 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 211 - Create User (Register)
+        // CHANGED: Now accepts RegisterDto instead of raw User model
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] User user)
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == user.Email))
+            if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             {
                 return BadRequest("Email already exists.");
             }
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            user.isVerified = false;
+            // Map DTO to User model
+            var user = new User
+            {
+                Name = dto.Name,
+                Email = dto.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password), // Hash the plain text password
+                isVerified = false
+            };
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
@@ -40,24 +48,25 @@ namespace UttuHub.API.Controllers
             return Ok(new { message = "User registered successfully! Awaiting verification." });
         }
 
-        // 2. UC - 212 - login
+        // UC 212 - Login
+        // CHANGED: Now accepts LoginDto instead of raw User model
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] User loginDto)
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == loginDto.Email);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
 
             if (user == null) return Unauthorized("Invalid Email.");
 
             if (!user.isVerified) return Unauthorized("Account not verified by Admin.");
 
-            bool isValid = BCrypt.Net.BCrypt.Verify(loginDto.PasswordHash, user.PasswordHash);
+            bool isValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash); // Compare plain text against stored hash
             if (!isValid) return Unauthorized("Invalid Password.");
 
             var token = GenerateJwtToken(user);
             return Ok(new { token = token, user = user.Name });
         }
 
-        // UC 213 - Verify
+        // UC 213 - Verify User
         [HttpPut("verify/{id}")]
         public async Task<IActionResult> VerifyUser(int id)
         {
@@ -70,41 +79,43 @@ namespace UttuHub.API.Controllers
             return Ok(new { message = $"User {user.Name} has been verified successfully." });
         }
 
-
         // UC 214 - Get Single User Profile
+        // CHANGED: Now returns UserResponseDto instead of anonymous object
         [HttpGet("{id}")]
-        public async Task<ActionResult<object>> GetUser(int id)
+        public async Task<ActionResult<UserResponseDto>> GetUser(int id)
         {
-            var user = await _context.Users
-                .Select(u => new {
-                    u.Id,
-                    u.Name,
-                    u.Email,
-                    u.ImageUrl,
-                    u.isVerified
-                })
-                .FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _context.Users.FindAsync(id);
 
             if (user == null) return NotFound("User not found.");
 
-            return Ok(user);
+            var result = new UserResponseDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                ImageUrl = user.ImageUrl,
+                IsVerified = user.isVerified
+            };
+
+            return Ok(result);
         }
 
-        // UC 215 - Get all Users 
+        // UC 215 - Get all Users
+        // CHANGED: Now returns List<UserResponseDto> instead of anonymous object list
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetUsers()
         {
             return await _context.Users
-                .Select(u => new {
-                    u.Id,
-                    u.Name,
-                    u.Email,
-                    u.ImageUrl,
-                    u.isVerified
+                .Select(u => new UserResponseDto
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email,
+                    ImageUrl = u.ImageUrl,
+                    IsVerified = u.isVerified
                 })
                 .ToListAsync();
         }
-
 
         // JWT Generator
         private string GenerateJwtToken(User user)
@@ -130,5 +141,3 @@ namespace UttuHub.API.Controllers
         }
     }
 }
-
-

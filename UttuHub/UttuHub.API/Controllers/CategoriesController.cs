@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UttuHub.API.Data;
 using UttuHub.API.Models;
@@ -10,7 +9,6 @@ namespace UttuHub.API.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-
         private readonly AppDbContext _context;
         public CategoriesController(AppDbContext context)
         {
@@ -24,10 +22,22 @@ namespace UttuHub.API.Controllers
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(PostCategory), new { id = category.Id }, category); // only requires name.
+            // FIXED: was pointing to PostCategory (wrong), should point to GetCategory (single)
+            return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
 
-        // UC 202 - GET all Category
+        // UC 201.1 - GET single Category by ID  ← ADDED
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Category>> GetCategory(int id)
+        {
+            var category = await _context.Categories.FindAsync(id);
+
+            if (category == null) return NotFound();
+
+            return Ok(category);
+        }
+
+        // UC 202 - GET all Categories
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
         {
@@ -64,7 +74,6 @@ namespace UttuHub.API.Controllers
             }
 
             return NoContent();
-
         }
 
         // UC 204 - Delete Category
@@ -90,10 +99,5 @@ namespace UttuHub.API.Controllers
 
             return NoContent();
         }
-
-
-
     }
 }
-
-

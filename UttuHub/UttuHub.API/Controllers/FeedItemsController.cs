@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UttuHub.API.Data;
+using UttuHub.API.DTOs.Category;   // ADDED: CategorySummaryDto
+using UttuHub.API.DTOs.FeedItem;   // ADDED: FeedItem DTOs
 using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
@@ -14,6 +15,7 @@ namespace UttuHub.API.Controllers
         public FeedItemsController(AppDbContext context) { _context = context; }
 
         // UC 221 - Create FeedItem with Multiple Categories
+        // CHANGED: Now accepts FeedItemCreateDto instead of inline DTO
         [HttpPost]
         public async Task<ActionResult> PostFeedItem(FeedItemCreateDto dto)
         {
@@ -24,7 +26,7 @@ namespace UttuHub.API.Controllers
                 ImageUrl = dto.ImageUrl,
                 IsHighlight = dto.IsHighlight,
                 UserId = dto.UserId,
-                Created = DateTime.UtcNow
+                Created = DateTime.UtcNow // Set server-side, not from client
             };
 
             if (dto.CategoryIds != null && dto.CategoryIds.Any())
@@ -38,19 +40,15 @@ namespace UttuHub.API.Controllers
             _context.FeedItems.Add(feedItem);
             await _context.SaveChangesAsync();
 
-            var result = new
-            {
-                feedItem.Id,
-                feedItem.Title,
-                CategoryCount = dto.CategoryIds?.Count ?? 0
-            };
+            var result = new { feedItem.Id, feedItem.Title, CategoryCount = dto.CategoryIds?.Count ?? 0 };
 
-            return CreatedAtAction(nameof(GetFeedItem), new { id = feedItem.Id }, result); // ✅ Fixed: was nameof(PostFeedItem)
+            return CreatedAtAction(nameof(GetFeedItem), new { id = feedItem.Id }, result);
         }
 
-        // UC 221.1 - Get single FeedItem by ID (required for CreatedAtAction)
+        // UC 221.1 - Get single FeedItem by ID
+        // CHANGED: Now returns FeedItemResponseDto instead of anonymous object
         [HttpGet("{id}")]
-        public async Task<ActionResult<object>> GetFeedItem(int id)
+        public async Task<ActionResult<FeedItemResponseDto>> GetFeedItem(int id)
         {
             var f = await _context.FeedItems
                 .Include(f => f.FeedItemCategories)
@@ -59,59 +57,86 @@ namespace UttuHub.API.Controllers
 
             if (f == null) return NotFound();
 
-            return new
+            var result = new FeedItemResponseDto
             {
-                f.Id,
-                f.Title,
-                f.Content,
-                f.ImageUrl,
-                f.Created,
-                f.IsHighlight,
-                f.UserId,
-                Categories = f.FeedItemCategories.Select(fc => new {
-                    fc.Category!.Id,
-                    fc.Category.Name,
-                    fc.Category.HexColor,
-                    fc.Category.IconKey
+                Id = f.Id,
+                Title = f.Title,
+                Content = f.Content,
+                ImageUrl = f.ImageUrl,
+                Created = f.Created,
+                IsHighlight = f.IsHighlight,
+                UserId = f.UserId,
+                Categories = f.FeedItemCategories.Select(fc => new CategorySummaryDto
+                {
+                    Id = fc.Category!.Id,
+                    Name = fc.Category.Name,
+                    HexColor = fc.Category.HexColor,
+                    IconKey = fc.Category.IconKey
                 }).ToList()
             };
+
+            return Ok(result);
         }
 
         // UC 222 - Read all FeedItems (Including Categories)
+        // CHANGED: Now returns List<FeedItemResponseDto> instead of anonymous object list
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<object>>> GetFeedItems()
+        public async Task<ActionResult<IEnumerable<FeedItemResponseDto>>> GetFeedItems()
         {
-            return await _context.FeedItems
+            var feedItems = await _context.FeedItems
                 .Include(f => f.FeedItemCategories)
                     .ThenInclude(fc => fc.Category)
                 .OrderByDescending(f => f.Created)
-                .Select(f => new {
-                    f.Id,
-                    f.Title,
-                    f.Content,
-                    f.ImageUrl,
-                    f.Created,
-                    f.IsHighlight,
-                    f.UserId,
-
-                    Categories = f.FeedItemCategories.Select(fc => new {
-                        fc.Category!.Id,
-                        fc.Category.Name,
-                        fc.Category.HexColor,
-                        fc.Category.IconKey
-                    }).ToList()
-                })
                 .ToListAsync();
+
+            var result = feedItems.Select(f => new FeedItemResponseDto
+            {
+                Id = f.Id,
+                Title = f.Title,
+                Content = f.Content,
+                ImageUrl = f.ImageUrl,
+                Created = f.Created,
+                IsHighlight = f.IsHighlight,
+                UserId = f.UserId,
+                Categories = f.FeedItemCategories.Select(fc => new CategorySummaryDto
+                {
+                    Id = fc.Category!.Id,
+                    Name = fc.Category.Name,
+                    HexColor = fc.Category.HexColor,
+                    IconKey = fc.Category.IconKey
+                }).ToList()
+            });
+
+            return Ok(result);
         }
 
         // UC 223 - Update FeedItem
+        // CHANGED: Now accepts FeedItemUpdateDto - replaces all category links
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutFeedItem(int id, FeedItem feedItem)
+        public async Task<IActionResult> PutFeedItem(int id, FeedItemUpdateDto dto)
         {
-            if (id != feedItem.Id) return BadRequest("ID mismatch");
+            var feedItem = await _context.FeedItems
+                .Include(f => f.FeedItemCategories)
+                .FirstOrDefaultAsync(f => f.Id == id);
 
-            _context.Entry(feedItem).State = EntityState.Modified;
-            _context.Entry(feedItem).Property(x => x.Created).IsModified = false;
+            if (feedItem == null) return NotFound();
+
+            // Update simple fields
+            feedItem.Title = dto.Title;
+            feedItem.Content = dto.Content;
+            feedItem.ImageUrl = dto.ImageUrl;
+            feedItem.IsHighlight = dto.IsHighlight;
+            // Created and UserId are intentionally NOT updated
+
+            // Replace all category links (delete old, insert new)
+            feedItem.FeedItemCategories.Clear();
+            if (dto.CategoryIds != null && dto.CategoryIds.Any())
+            {
+                foreach (var catId in dto.CategoryIds)
+                {
+                    feedItem.FeedItemCategories.Add(new FeedItemCategory { FeedItemId = id, CategoryId = catId });
+                }
+            }
 
             try
             {
@@ -122,6 +147,7 @@ namespace UttuHub.API.Controllers
                 if (!_context.FeedItems.Any(e => e.Id == id)) return NotFound();
                 else throw;
             }
+
             return NoContent();
         }
 
@@ -136,16 +162,5 @@ namespace UttuHub.API.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
-    }
-
-    // DTO !!!
-    public class FeedItemCreateDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public string? Content { get; set; }
-        public string? ImageUrl { get; set; }
-        public bool IsHighlight { get; set; }
-        public int UserId { get; set; }
-        public List<int> CategoryIds { get; set; } = new();
     }
 }

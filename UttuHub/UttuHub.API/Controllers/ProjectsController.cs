@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UttuHub.API.Data;
+using UttuHub.API.DTOs.Project;   // ADDED: DTO namespace
 using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
@@ -17,41 +17,93 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 231 - Create Project
+        // CHANGED: Now accepts ProjectCreateDto instead of raw Project model
         [HttpPost]
-        public async Task<ActionResult<Project>> PostProject(Project project)
+        public async Task<ActionResult<ProjectResponseDto>> PostProject(ProjectCreateDto dto)
         {
+            // Map DTO to Project model
+            var project = new Project
+            {
+                Name = dto.Name,
+                Description = dto.Description,
+                TechStack = dto.TechStack,
+                GithubUrl = dto.GithubUrl,
+                LiveUrl = dto.LiveUrl,
+                UserId = dto.UserId // TODO: Replace with JWT claim extraction once auth is added
+            };
+
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project); // ✅ Fixed: was nameof(GetProjects)
+            var result = new ProjectResponseDto
+            {
+                Id = project.Id,
+                Name = project.Name,
+                Description = project.Description,
+                TechStack = project.TechStack,
+                GithubUrl = project.GithubUrl,
+                LiveUrl = project.LiveUrl,
+                UserId = project.UserId
+            };
+
+            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, result);
         }
 
-        // UC 231.1 - Get single Project by ID (required for CreatedAtAction)
+        // UC 231.1 - Get single Project by ID
+        // CHANGED: Now returns ProjectResponseDto instead of raw Project model
         [HttpGet("{id}")]
-        public async Task<ActionResult<Project>> GetProject(int id)
+        public async Task<ActionResult<ProjectResponseDto>> GetProject(int id)
         {
             var project = await _context.Projects.FindAsync(id);
             if (project == null) return NotFound();
-            return project;
+
+            var result = new ProjectResponseDto
+            {
+                Id = project.Id,
+                Name = project.Name,
+                Description = project.Description,
+                TechStack = project.TechStack,
+                GithubUrl = project.GithubUrl,
+                LiveUrl = project.LiveUrl,
+                UserId = project.UserId
+            };
+
+            return Ok(result);
         }
 
         // UC 232 - GET all Projects
+        // CHANGED: Now returns List<ProjectResponseDto> instead of raw Project list
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
+        public async Task<ActionResult<IEnumerable<ProjectResponseDto>>> GetProjects()
         {
-            return await _context.Projects.ToListAsync();
+            return await _context.Projects
+                .Select(p => new ProjectResponseDto
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    Description = p.Description,
+                    TechStack = p.TechStack,
+                    GithubUrl = p.GithubUrl,
+                    LiveUrl = p.LiveUrl,
+                    UserId = p.UserId
+                })
+                .ToListAsync();
         }
 
         // UC 233 - Update Project
+        // CHANGED: Now accepts ProjectUpdateDto instead of raw Project model
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutProject(int id, Project project)
+        public async Task<IActionResult> PutProject(int id, ProjectUpdateDto dto)
         {
-            if (id != project.Id)
-            {
-                return BadRequest("ID mismatch");
-            }
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
 
-            _context.Entry(project).State = EntityState.Modified;
+            // Update fields - UserId intentionally NOT updatable (ownership cannot be transferred)
+            project.Name = dto.Name;
+            project.Description = dto.Description;
+            project.TechStack = dto.TechStack;
+            project.GithubUrl = dto.GithubUrl;
+            project.LiveUrl = dto.LiveUrl;
 
             try
             {

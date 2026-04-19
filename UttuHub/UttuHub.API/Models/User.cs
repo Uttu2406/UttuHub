@@ -15,7 +15,7 @@ namespace UttuHub.API.Models
         public string PasswordHash { get; set; } = string.Empty;
 
         [Required]
-        public string? Email { get; set; }
+        public string Email { get; set; }
 
         public string? ImageUrl { get; set; }
 
