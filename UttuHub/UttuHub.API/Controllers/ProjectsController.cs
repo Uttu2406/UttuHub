@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using UttuHub.API.Data;
 using UttuHub.API.DTOs.Project;   // ADDED: DTO namespace
 using UttuHub.API.Models;
@@ -18,9 +19,15 @@ namespace UttuHub.API.Controllers
 
         // UC 231 - Create Project
         // CHANGED: Now accepts ProjectCreateDto instead of raw Project model
+        // CHANGED: UserId now extracted from JWT claims instead of being sent in request body
         [HttpPost]
         public async Task<ActionResult<ProjectResponseDto>> PostProject(ProjectCreateDto dto)
         {
+            // ADDED: Extract UserId from JWT token claims (logged in user only)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null) return Unauthorized("User not identified.");
+            var userId = int.Parse(userIdClaim);
+
             // Map DTO to Project model
             var project = new Project
             {
@@ -29,7 +36,7 @@ namespace UttuHub.API.Controllers
                 TechStack = dto.TechStack,
                 GithubUrl = dto.GithubUrl,
                 LiveUrl = dto.LiveUrl,
-                UserId = dto.UserId // TODO: Replace with JWT claim extraction once auth is added
+                UserId = userId // CHANGED: Set from JWT, not from request body
             };
 
             _context.Projects.Add(project);
@@ -46,10 +53,10 @@ namespace UttuHub.API.Controllers
                 UserId = project.UserId
             };
 
-            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, result);
+            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, result); // ✅ Fixed: was nameof(GetProjects)
         }
 
-        // UC 231.1 - Get single Project by ID
+        // UC 231.1 - Get single Project by ID (required for CreatedAtAction)
         // CHANGED: Now returns ProjectResponseDto instead of raw Project model
         [HttpGet("{id}")]
         public async Task<ActionResult<ProjectResponseDto>> GetProject(int id)
@@ -96,7 +103,10 @@ namespace UttuHub.API.Controllers
         public async Task<IActionResult> PutProject(int id, ProjectUpdateDto dto)
         {
             var project = await _context.Projects.FindAsync(id);
-            if (project == null) return NotFound();
+            if (project == null)
+            {
+                return NotFound();
+            }
 
             // Update fields - UserId intentionally NOT updatable (ownership cannot be transferred)
             project.Name = dto.Name;

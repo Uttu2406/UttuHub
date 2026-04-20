@@ -14,4 +14,3 @@
         public List<int> CategoryIds { get; set; } = new(); // Replaces all existing category links
     }
 }
-

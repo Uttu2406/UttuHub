@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using UttuHub.API.Data;
 using UttuHub.API.DTOs.Category;   // ADDED: CategorySummaryDto
 using UttuHub.API.DTOs.FeedItem;   // ADDED: FeedItem DTOs
@@ -15,18 +16,24 @@ namespace UttuHub.API.Controllers
         public FeedItemsController(AppDbContext context) { _context = context; }
 
         // UC 221 - Create FeedItem with Multiple Categories
-        // CHANGED: Now accepts FeedItemCreateDto instead of inline DTO
+        // CHANGED: Now accepts FeedItemCreateDto instead of inline DTO defined at bottom of file
+        // CHANGED: UserId now extracted from JWT claims instead of being sent in request body
         [HttpPost]
         public async Task<ActionResult> PostFeedItem(FeedItemCreateDto dto)
         {
+            // ADDED: Extract UserId from JWT token claims (logged in user only)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (userIdClaim == null) return Unauthorized("User not identified.");
+            var userId = int.Parse(userIdClaim);
+
             var feedItem = new FeedItem
             {
                 Title = dto.Title,
                 Content = dto.Content,
                 ImageUrl = dto.ImageUrl,
                 IsHighlight = dto.IsHighlight,
-                UserId = dto.UserId,
-                Created = DateTime.UtcNow // Set server-side, not from client
+                UserId = userId, // CHANGED: Set from JWT, not from request body
+                Created = DateTime.UtcNow
             };
 
             if (dto.CategoryIds != null && dto.CategoryIds.Any())
@@ -40,12 +47,17 @@ namespace UttuHub.API.Controllers
             _context.FeedItems.Add(feedItem);
             await _context.SaveChangesAsync();
 
-            var result = new { feedItem.Id, feedItem.Title, CategoryCount = dto.CategoryIds?.Count ?? 0 };
+            var result = new
+            {
+                feedItem.Id,
+                feedItem.Title,
+                CategoryCount = dto.CategoryIds?.Count ?? 0
+            };
 
-            return CreatedAtAction(nameof(GetFeedItem), new { id = feedItem.Id }, result);
+            return CreatedAtAction(nameof(GetFeedItem), new { id = feedItem.Id }, result); // ✅ Fixed: was nameof(PostFeedItem)
         }
 
-        // UC 221.1 - Get single FeedItem by ID
+        // UC 221.1 - Get single FeedItem by ID (required for CreatedAtAction)
         // CHANGED: Now returns FeedItemResponseDto instead of anonymous object
         [HttpGet("{id}")]
         public async Task<ActionResult<FeedItemResponseDto>> GetFeedItem(int id)
@@ -111,7 +123,8 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 223 - Update FeedItem
-        // CHANGED: Now accepts FeedItemUpdateDto - replaces all category links
+        // CHANGED: Now accepts FeedItemUpdateDto instead of raw FeedItem model
+        // CHANGED: Category links are fully replaced (cleared and re-inserted) on every update
         [HttpPut("{id}")]
         public async Task<IActionResult> PutFeedItem(int id, FeedItemUpdateDto dto)
         {
@@ -163,4 +176,6 @@ namespace UttuHub.API.Controllers
             return NoContent();
         }
     }
+
+    // DTO !!! - REMOVED: FeedItemCreateDto moved to DTOs/FeedItem/FeedItemCreateDto.cs
 }

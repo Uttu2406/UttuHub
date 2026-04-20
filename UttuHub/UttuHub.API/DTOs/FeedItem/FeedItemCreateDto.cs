@@ -1,7 +1,7 @@
 ﻿namespace UttuHub.API.DTOs.FeedItem
 {
     // UC 221 - Used when creating a new FeedItem (POST /feeditems)
-    // CategoryIds links existing categories via junction table
+    // CHANGED: Removed UserId - extracted from JWT claims in controller instead
     // Created is set server-side, not taken from client
     public class FeedItemCreateDto
     {
@@ -9,7 +9,6 @@
         public string? Content { get; set; }
         public string? ImageUrl { get; set; }
         public bool IsHighlight { get; set; }
-        public int UserId { get; set; }
 
 
         public List<int> CategoryIds { get; set; } = new(); // IDs of categories to link

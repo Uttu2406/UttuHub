@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UttuHub.API.Data;
+using UttuHub.API.DTOs.Category;   // ADDED: DTO namespace
 using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
@@ -9,6 +10,7 @@ namespace UttuHub.API.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
+
         private readonly AppDbContext _context;
         public CategoriesController(AppDbContext context)
         {
@@ -16,17 +18,27 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 201 - Create Category
+        // CHANGED: Now accepts CategoryCreateDto instead of raw Category model (removes Id from request)
         [HttpPost]
-        public async Task<ActionResult<Category>> PostCategory(Category category)
+        public async Task<ActionResult<Category>> PostCategory(CategoryCreateDto dto)
         {
+            // Map DTO to Category model
+            var category = new Category
+            {
+                Name = dto.Name,
+                Description = dto.Description,
+                IconKey = dto.IconKey,
+                HexColor = dto.HexColor
+            };
+
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
 
             // FIXED: was pointing to PostCategory (wrong), should point to GetCategory (single)
-            return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
+            return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category); // only requires name.
         }
 
-        // UC 201.1 - GET single Category by ID  ← ADDED
+        // UC 201.1 - GET single Category by ID ← ADDED
         [HttpGet("{id}")]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
@@ -37,7 +49,7 @@ namespace UttuHub.API.Controllers
             return Ok(category);
         }
 
-        // UC 202 - GET all Categories
+        // UC 202 - GET all Category
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
         {
@@ -74,6 +86,7 @@ namespace UttuHub.API.Controllers
             }
 
             return NoContent();
+
         }
 
         // UC 204 - Delete Category
@@ -101,3 +114,4 @@ namespace UttuHub.API.Controllers
         }
     }
 }
+

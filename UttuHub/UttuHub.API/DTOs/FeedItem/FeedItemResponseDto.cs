@@ -18,4 +18,3 @@ namespace UttuHub.API.DTOs.FeedItem
         public List<CategorySummaryDto> Categories { get; set; } = new();
     }
 }
-

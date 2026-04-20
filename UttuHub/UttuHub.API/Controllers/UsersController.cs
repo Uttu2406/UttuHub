@@ -5,7 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using UttuHub.API.Data;
-using UttuHub.API.DTOs.User;
+using UttuHub.API.DTOs.User;   // ADDED: DTO namespace
 using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
@@ -25,6 +25,7 @@ namespace UttuHub.API.Controllers
 
         // UC 211 - Create User (Register)
         // CHANGED: Now accepts RegisterDto instead of raw User model
+        // CHANGED: Added ImageUrl to RegisterDto
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
@@ -38,7 +39,8 @@ namespace UttuHub.API.Controllers
             {
                 Name = dto.Name,
                 Email = dto.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password), // Hash the plain text password
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                ImageUrl = dto.ImageUrl,
                 isVerified = false
             };
 
@@ -48,8 +50,9 @@ namespace UttuHub.API.Controllers
             return Ok(new { message = "User registered successfully! Awaiting verification." });
         }
 
-        // UC 212 - Login
+        // 2. UC - 212 - login
         // CHANGED: Now accepts LoginDto instead of raw User model
+        // CHANGED: Returns token only (removed user name from response)
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
@@ -59,14 +62,14 @@ namespace UttuHub.API.Controllers
 
             if (!user.isVerified) return Unauthorized("Account not verified by Admin.");
 
-            bool isValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash); // Compare plain text against stored hash
+            bool isValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
             if (!isValid) return Unauthorized("Invalid Password.");
 
             var token = GenerateJwtToken(user);
-            return Ok(new { token = token, user = user.Name });
+            return Ok(new { token = token }); // CHANGED: Returns token only
         }
 
-        // UC 213 - Verify User
+        // UC 213 - Verify
         [HttpPut("verify/{id}")]
         public async Task<IActionResult> VerifyUser(int id)
         {
@@ -100,7 +103,7 @@ namespace UttuHub.API.Controllers
             return Ok(result);
         }
 
-        // UC 215 - Get all Users
+        // UC 215 - Get all Users 
         // CHANGED: Now returns List<UserResponseDto> instead of anonymous object list
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserResponseDto>>> GetUsers()
@@ -115,6 +118,50 @@ namespace UttuHub.API.Controllers
                     IsVerified = u.isVerified
                 })
                 .ToListAsync();
+        }
+
+        // UC 216 - Update User ← ADDED
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutUser(int id, UserUpdateDto dto)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+
+            // Update fields - isVerified intentionally NOT updatable here (use verify endpoint)
+            user.Name = dto.Name;
+            user.Email = dto.Email;
+            user.ImageUrl = dto.ImageUrl;
+
+            // Only re-hash and update password if a new one was provided
+            if (!string.IsNullOrWhiteSpace(dto.Password))
+            {
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!_context.Users.Any(e => e.Id == id)) return NotFound();
+                else throw;
+            }
+
+            return NoContent();
+        }
+
+        // UC 217 - Delete User ← ADDED
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound("User not found.");
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
 
         // JWT Generator

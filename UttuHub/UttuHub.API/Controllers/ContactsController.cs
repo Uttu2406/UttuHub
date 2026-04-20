@@ -18,11 +18,19 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 241 - Create Contact
-        [HttpPost]
-        public async Task<ActionResult<Contact>> PostContact(Contact contact)
+        // CHANGED: Now takes username in route to identify which admin page this contact is for
+        // CHANGED: UserId resolved server-side from username - visitor never sends UserId
+        // CHANGED: IsApproved removed from request - always set to false server-side
+        [HttpPost("~/api/users/{username}/contacts")]
+        public async Task<ActionResult<Contact>> PostContact(string username, Contact contact)
         {
+            // ADDED: Look up the admin by username to get their UserId automatically
+            var admin = await _context.Users.FirstOrDefaultAsync(u => u.Name.ToLower() == username.ToLower());
+            if (admin == null) return NotFound($"No portfolio found for '{username}'.");
+
             contact.SentAt = DateTime.UtcNow;
             contact.IsApproved = false; // Default to false so you can curate them
+            contact.UserId = admin.Id;  // ADDED: Set automatically from route, visitor never sends this
 
             _context.Contacts.Add(contact);
             await _context.SaveChangesAsync();
@@ -31,7 +39,7 @@ namespace UttuHub.API.Controllers
             return CreatedAtAction(nameof(GetContact), new { id = contact.Id }, contact);
         }
 
-        // UC 241.1 - GET single Contact by ID  ← ADDED
+        // UC 241.1 - GET single Contact by ID ← ADDED
         [HttpGet("{id}")]
         public async Task<ActionResult<ContactResponseDto>> GetContact(int id)
         {
@@ -46,21 +54,22 @@ namespace UttuHub.API.Controllers
                 Name = contact.Name,
                 Email = contact.Email,
                 Message = contact.Message,
-                Address = contact.Address,
+                Address = contact.Address, // Optional field
                 IsPublic = contact.IsPublic,
                 IsApproved = contact.IsApproved,
-                SentAt = contact.SentAt
+                SentAt = contact.SentAt,
+                UserId = contact.UserId
             };
 
             return Ok(result);
         }
 
-        // UC 242 - GET all Contacts
+        // UC 242- GET all Contact
+        // CHANGED: Now returns List<ContactResponseDto> instead of raw Contact list
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ContactResponseDto>>> GetContacts()
         {
             // Usually, you'll want to see the latest messages first
-            // CHANGED: Now returns ContactResponseDto instead of raw Contact model
             return await _context.Contacts
                 .OrderByDescending(c => c.SentAt)
                 .Select(c => new ContactResponseDto
@@ -69,10 +78,11 @@ namespace UttuHub.API.Controllers
                     Name = c.Name,
                     Email = c.Email,
                     Message = c.Message,
-                    Address = c.Address,
+                    Address = c.Address, // Optional field
                     IsPublic = c.IsPublic,
                     IsApproved = c.IsApproved,
-                    SentAt = c.SentAt
+                    SentAt = c.SentAt,
+                    UserId = c.UserId
                 })
                 .ToListAsync();
         }
