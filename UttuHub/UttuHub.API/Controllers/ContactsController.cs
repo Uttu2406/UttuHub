@@ -18,19 +18,27 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 241 - Create Contact
-        // CHANGED: Now takes username in route to identify which admin page this contact is for
-        // CHANGED: UserId resolved server-side from username - visitor never sends UserId
-        // CHANGED: IsApproved removed from request - always set to false server-side
+        // CHANGED: Now accepts ContactCreateDto - Id, IsApproved, SentAt, UserId all set server-side
+        // CHANGED: UserId resolved from username in route - visitor never sends it
         [HttpPost("~/api/users/{username}/contacts")]
-        public async Task<ActionResult<Contact>> PostContact(string username, Contact contact)
+        public async Task<ActionResult<Contact>> PostContact(string username, ContactCreateDto dto)
         {
             // ADDED: Look up the admin by username to get their UserId automatically
             var admin = await _context.Users.FirstOrDefaultAsync(u => u.Name.ToLower() == username.ToLower());
             if (admin == null) return NotFound($"No portfolio found for '{username}'.");
 
-            contact.SentAt = DateTime.UtcNow;
-            contact.IsApproved = false; // Default to false so you can curate them
-            contact.UserId = admin.Id;  // ADDED: Set automatically from route, visitor never sends this
+            // Map DTO to Contact model
+            var contact = new Contact
+            {
+                Name = dto.Name,
+                Email = dto.Email,
+                Message = dto.Message,
+                Address = dto.Address, // Optional field
+                IsPublic = dto.IsPublic,
+                IsApproved = false,         // Default to false so you can curate them
+                SentAt = DateTime.UtcNow,   // ADDED: Set server-side, not from client
+                UserId = admin.Id           // ADDED: Set automatically from route, visitor never sends this
+            };
 
             _context.Contacts.Add(contact);
             await _context.SaveChangesAsync();
@@ -88,6 +96,7 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 242 - Update Contact to Approved
+        // CHANGED: Blocks approval if IsPublic is false
         [HttpPut("{id}/approve")]
         public async Task<IActionResult> ApproveContact(int id)
         {
@@ -95,6 +104,12 @@ namespace UttuHub.API.Controllers
             if (contact == null)
             {
                 return NotFound();
+            }
+
+            // ADDED: Cannot approve a contact that is not public
+            if (!contact.IsPublic)
+            {
+                return BadRequest("Cannot approve a contact that is not public.");
             }
 
             // FIXED: was setting to false (bug in original), should be true to actually approve
@@ -122,3 +137,5 @@ namespace UttuHub.API.Controllers
         }
     }
 }
+
+

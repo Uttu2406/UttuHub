@@ -26,9 +26,16 @@ namespace UttuHub.API.Controllers
         // UC 211 - Create User (Register)
         // CHANGED: Now accepts RegisterDto instead of raw User model
         // CHANGED: Added ImageUrl to RegisterDto
+        // CHANGED: Added unique username check alongside existing email check
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+            // ADDED: Check for duplicate username (case-insensitive)
+            if (await _context.Users.AnyAsync(u => u.Name.ToLower() == dto.Name.ToLower()))
+            {
+                return BadRequest("Username already taken.");
+            }
+
             if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             {
                 return BadRequest("Email already exists.");
@@ -127,6 +134,18 @@ namespace UttuHub.API.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound("User not found.");
 
+            // ADDED: Check for duplicate username on update (exclude current user from check)
+            if (await _context.Users.AnyAsync(u => u.Name.ToLower() == dto.Name.ToLower() && u.Id != id))
+            {
+                return BadRequest("Username already taken.");
+            }
+
+            // ADDED: Check for duplicate email on update (exclude current user from check)
+            if (await _context.Users.AnyAsync(u => u.Email == dto.Email && u.Id != id))
+            {
+                return BadRequest("Email already exists.");
+            }
+
             // Update fields - isVerified intentionally NOT updatable here (use verify endpoint)
             user.Name = dto.Name;
             user.Email = dto.Email;
@@ -152,9 +171,17 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 217 - Delete User ← ADDED
+        // CHANGED: Prevents a logged-in user from deleting their own account
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
+            // ADDED: Extract logged-in user's ID from JWT and block self-deletion
+            var loggedInUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (loggedInUserIdClaim != null && int.Parse(loggedInUserIdClaim) == id)
+            {
+                return BadRequest("You cannot delete your own account while logged in.");
+            }
+
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound("User not found.");
 
@@ -188,3 +215,6 @@ namespace UttuHub.API.Controllers
         }
     }
 }
+
+
+

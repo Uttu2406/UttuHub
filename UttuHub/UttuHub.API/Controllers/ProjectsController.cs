@@ -20,6 +20,7 @@ namespace UttuHub.API.Controllers
         // UC 231 - Create Project
         // CHANGED: Now accepts ProjectCreateDto instead of raw Project model
         // CHANGED: UserId now extracted from JWT claims instead of being sent in request body
+        // CHANGED: TechStack sent as List<string>, joined with comma before saving
         [HttpPost]
         public async Task<ActionResult<ProjectResponseDto>> PostProject(ProjectCreateDto dto)
         {
@@ -33,7 +34,7 @@ namespace UttuHub.API.Controllers
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                TechStack = dto.TechStack,
+                TechStack = string.Join(", ", dto.TechStack), // CHANGED: Join list into comma string for storage
                 GithubUrl = dto.GithubUrl,
                 LiveUrl = dto.LiveUrl,
                 UserId = userId // CHANGED: Set from JWT, not from request body
@@ -47,7 +48,9 @@ namespace UttuHub.API.Controllers
                 Id = project.Id,
                 Name = project.Name,
                 Description = project.Description,
-                TechStack = project.TechStack,
+                TechStack = project.TechStack?
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .ToList() ?? new(), // CHANGED: Split comma string back into list for response
                 GithubUrl = project.GithubUrl,
                 LiveUrl = project.LiveUrl,
                 UserId = project.UserId
@@ -58,6 +61,7 @@ namespace UttuHub.API.Controllers
 
         // UC 231.1 - Get single Project by ID (required for CreatedAtAction)
         // CHANGED: Now returns ProjectResponseDto instead of raw Project model
+        // CHANGED: TechStack split from comma string into List<string> in response
         [HttpGet("{id}")]
         public async Task<ActionResult<ProjectResponseDto>> GetProject(int id)
         {
@@ -69,7 +73,9 @@ namespace UttuHub.API.Controllers
                 Id = project.Id,
                 Name = project.Name,
                 Description = project.Description,
-                TechStack = project.TechStack,
+                TechStack = project.TechStack?
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .ToList() ?? new(), // CHANGED: Split comma string into list for response
                 GithubUrl = project.GithubUrl,
                 LiveUrl = project.LiveUrl,
                 UserId = project.UserId
@@ -80,25 +86,31 @@ namespace UttuHub.API.Controllers
 
         // UC 232 - GET all Projects
         // CHANGED: Now returns List<ProjectResponseDto> instead of raw Project list
+        // CHANGED: TechStack split from comma string into List<string> in response
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProjectResponseDto>>> GetProjects()
         {
-            return await _context.Projects
-                .Select(p => new ProjectResponseDto
-                {
-                    Id = p.Id,
-                    Name = p.Name,
-                    Description = p.Description,
-                    TechStack = p.TechStack,
-                    GithubUrl = p.GithubUrl,
-                    LiveUrl = p.LiveUrl,
-                    UserId = p.UserId
-                })
-                .ToListAsync();
+            var projects = await _context.Projects.ToListAsync();
+
+            var result = projects.Select(p => new ProjectResponseDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                TechStack = p.TechStack?
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .ToList() ?? new(), // CHANGED: Split comma string into list for response
+                GithubUrl = p.GithubUrl,
+                LiveUrl = p.LiveUrl,
+                UserId = p.UserId
+            });
+
+            return Ok(result);
         }
 
         // UC 233 - Update Project
         // CHANGED: Now accepts ProjectUpdateDto instead of raw Project model
+        // CHANGED: TechStack sent as List<string>, joined with comma before saving
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProject(int id, ProjectUpdateDto dto)
         {
@@ -111,7 +123,7 @@ namespace UttuHub.API.Controllers
             // Update fields - UserId intentionally NOT updatable (ownership cannot be transferred)
             project.Name = dto.Name;
             project.Description = dto.Description;
-            project.TechStack = dto.TechStack;
+            project.TechStack = string.Join(", ", dto.TechStack); // CHANGED: Join list into comma string for storage
             project.GithubUrl = dto.GithubUrl;
             project.LiveUrl = dto.LiveUrl;
 
@@ -151,3 +163,6 @@ namespace UttuHub.API.Controllers
         }
     }
 }
+
+
+

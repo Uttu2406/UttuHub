@@ -10,7 +10,6 @@ namespace UttuHub.API.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-
         private readonly AppDbContext _context;
         public CategoriesController(AppDbContext context)
         {
@@ -57,15 +56,18 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 203 - Update Category
+        // CHANGED: Now accepts CategoryUpdateDto instead of raw Category model (removes Id from request body)
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutCategory(int id, Category category)
+        public async Task<IActionResult> PutCategory(int id, CategoryUpdateDto dto)
         {
-            if (id != category.Id)
-            {
-                return BadRequest("ID mismatch");
-            }
+            var category = await _context.Categories.FindAsync(id);
+            if (category == null) return NotFound();
 
-            _context.Entry(category).State = EntityState.Modified; // naya cat haina purano ma modify gareko vanera
+            // Update fields - Id taken from route, not request body
+            category.Name = dto.Name;
+            category.Description = dto.Description;
+            category.IconKey = dto.IconKey;
+            category.HexColor = dto.HexColor;
 
             // Check for data sync issues
             try
@@ -86,7 +88,6 @@ namespace UttuHub.API.Controllers
             }
 
             return NoContent();
-
         }
 
         // UC 204 - Delete Category
@@ -114,4 +115,3 @@ namespace UttuHub.API.Controllers
         }
     }
 }
-
