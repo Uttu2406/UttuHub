@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UttuHub.API.Data;
 using UttuHub.API.DTOs.Contact;   // ADDED: DTO namespace
@@ -6,6 +7,7 @@ using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ContactsController : ControllerBase
@@ -20,6 +22,7 @@ namespace UttuHub.API.Controllers
         // UC 241 - Create Contact
         // CHANGED: Now accepts ContactCreateDto - Id, IsApproved, SentAt, UserId all set server-side
         // CHANGED: UserId resolved from username in route - visitor never sends it
+        [AllowAnonymous]
         [HttpPost("~/api/users/{username}/contacts")]
         public async Task<ActionResult<Contact>> PostContact(string username, ContactCreateDto dto)
         {
@@ -47,7 +50,7 @@ namespace UttuHub.API.Controllers
             return CreatedAtAction(nameof(GetContact), new { id = contact.Id }, contact);
         }
 
-        // UC 241.1 - GET single Contact by ID ← ADDED
+        // UC 241.1 - GET single Contact by ID ← admin only, sees all fields
         [HttpGet("{id}")]
         public async Task<ActionResult<ContactResponseDto>> GetContact(int id)
         {
@@ -72,7 +75,7 @@ namespace UttuHub.API.Controllers
             return Ok(result);
         }
 
-        // UC 242- GET all Contact
+        // UC 242 - GET all Contacts ← admin only, sees everything including private messages
         // CHANGED: Now returns List<ContactResponseDto> instead of raw Contact list
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ContactResponseDto>>> GetContacts()
@@ -95,7 +98,32 @@ namespace UttuHub.API.Controllers
                 .ToListAsync();
         }
 
-        // UC 242 - Update Contact to Approved
+        // UC 242.1 - GET approved public Contacts ← ADDED: public endpoint for portfolio frontend
+        // Returns only contacts where IsPublic = true AND IsApproved = true
+        [AllowAnonymous]
+        [HttpGet("public")]
+        public async Task<ActionResult<IEnumerable<ContactResponseDto>>> GetPublicContacts()
+        {
+            // Usually, you'll want to see the latest messages first
+            return await _context.Contacts
+                .Where(c => c.IsPublic && c.IsApproved) // ADDED: Only return public approved contacts
+                .OrderByDescending(c => c.SentAt)
+                .Select(c => new ContactResponseDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    Email = c.Email,
+                    Message = c.Message,
+                    Address = c.Address, // Optional field
+                    IsPublic = c.IsPublic,
+                    IsApproved = c.IsApproved,
+                    SentAt = c.SentAt,
+                    UserId = c.UserId
+                })
+                .ToListAsync();
+        }
+
+        // UC 242.2 - Update Contact to Approved
         // CHANGED: Blocks approval if IsPublic is false
         [HttpPut("{id}/approve")]
         public async Task<IActionResult> ApproveContact(int id)
@@ -137,5 +165,3 @@ namespace UttuHub.API.Controllers
         }
     }
 }
-
-

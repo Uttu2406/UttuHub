@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -10,6 +11,7 @@ using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
@@ -27,6 +29,7 @@ namespace UttuHub.API.Controllers
         // CHANGED: Now accepts RegisterDto instead of raw User model
         // CHANGED: Added ImageUrl to RegisterDto
         // CHANGED: Added unique username check alongside existing email check
+        [AllowAnonymous]
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
@@ -60,6 +63,7 @@ namespace UttuHub.API.Controllers
         // 2. UC - 212 - login
         // CHANGED: Now accepts LoginDto instead of raw User model
         // CHANGED: Returns token only (removed user name from response)
+        [AllowAnonymous]
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
@@ -148,7 +152,7 @@ namespace UttuHub.API.Controllers
 
             // Update fields - isVerified intentionally NOT updatable here (use verify endpoint)
             user.Name = dto.Name;
-            user.Email = dto.Email;
+            user.Email = dto.Email ?? user.Email;
             user.ImageUrl = dto.ImageUrl;
 
             // Only re-hash and update password if a new one was provided

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using UttuHub.API.Data;
 using UttuHub.API.DTOs.Category;   // ADDED: DTO namespace
@@ -6,6 +7,7 @@ using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class CategoriesController : ControllerBase
@@ -38,6 +40,7 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 201.1 - GET single Category by ID ← ADDED
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
@@ -49,6 +52,7 @@ namespace UttuHub.API.Controllers
         }
 
         // UC 202 - GET all Category
+        [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
         {

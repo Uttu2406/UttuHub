@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using UttuHub.API.Data;
@@ -8,6 +9,7 @@ using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class FeedItemsController : ControllerBase
@@ -59,6 +61,7 @@ namespace UttuHub.API.Controllers
 
         // UC 221.1 - Get single FeedItem by ID (required for CreatedAtAction)
         // CHANGED: Now returns FeedItemResponseDto instead of anonymous object
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<FeedItemResponseDto>> GetFeedItem(int id)
         {
@@ -92,6 +95,7 @@ namespace UttuHub.API.Controllers
 
         // UC 222 - Read all FeedItems (Including Categories)
         // CHANGED: Now returns List<FeedItemResponseDto> instead of anonymous object list
+        [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<FeedItemResponseDto>>> GetFeedItems()
         {
@@ -177,5 +181,7 @@ namespace UttuHub.API.Controllers
         }
     }
 
-    // DTO !!! - REMOVED: FeedItemCreateDto moved to DTOs/FeedItem/FeedItemCreateDto.cs
+
 }
+
+

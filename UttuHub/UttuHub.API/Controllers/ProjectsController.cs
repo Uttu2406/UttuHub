@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using UttuHub.API.Data;
@@ -7,6 +8,7 @@ using UttuHub.API.Models;
 
 namespace UttuHub.API.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ProjectsController : ControllerBase
@@ -62,6 +64,8 @@ namespace UttuHub.API.Controllers
         // UC 231.1 - Get single Project by ID (required for CreatedAtAction)
         // CHANGED: Now returns ProjectResponseDto instead of raw Project model
         // CHANGED: TechStack split from comma string into List<string> in response
+
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<ActionResult<ProjectResponseDto>> GetProject(int id)
         {
@@ -87,6 +91,7 @@ namespace UttuHub.API.Controllers
         // UC 232 - GET all Projects
         // CHANGED: Now returns List<ProjectResponseDto> instead of raw Project list
         // CHANGED: TechStack split from comma string into List<string> in response
+        [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProjectResponseDto>>> GetProjects()
         {
