@@ -16,6 +16,7 @@ namespace UttuHub.API.Models
         public string? TechStack { get; set; }
         public string? GithubUrl { get; set; }
         public string? LiveUrl { get; set; }
+        public string? Comment { get; set; } // Added for individual comments to projects
 
 
         [Required]

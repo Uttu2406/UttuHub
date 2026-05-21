@@ -14,6 +14,8 @@ namespace UttuHub.API.Models
 
         public string? Content { get; set; }
         public string? ImageUrl { get; set; }
+        public string? Location { get; set; } // Added for location
+        public string? Comment { get; set; } // Added for comments to individual posts/ feeds
         public DateTime? Created { get; set; }
         public bool IsHighlight { get; set; } = false;
 
