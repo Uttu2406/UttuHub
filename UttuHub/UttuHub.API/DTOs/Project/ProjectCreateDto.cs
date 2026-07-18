@@ -1,10 +1,14 @@
-﻿namespace UttuHub.API.DTOs.Project
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace UttuHub.API.DTOs.Project
 {
     // UC 231 - Used when creating a new Project (POST /projects)
     // CHANGED: Removed UserId - extracted from JWT claims in controller instead
     // CHANGED: TechStack is now List<string> - joined with comma on save
     public class ProjectCreateDto
     {
+        [Required]
+        [MaxLength(200)]
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public List<string> TechStack { get; set; } = new(); // CHANGED: List instead of comma string

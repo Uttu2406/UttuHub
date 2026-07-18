@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 
 namespace UttuHub.API.Models
@@ -20,7 +21,8 @@ namespace UttuHub.API.Models
         public string? ImageUrl { get; set; }
 
         [Required]
-        public bool isVerified { get; set; } = false;
+        [Column("isVerified")]
+        public bool IsVerified { get; set; } = false;
 
 
         [JsonIgnore]

@@ -33,6 +33,8 @@ namespace UttuHub.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
             // ADDED: Check for duplicate username (case-insensitive)
             if (await _context.Users.AnyAsync(u => u.Name.ToLower() == dto.Name.ToLower()))
             {
@@ -51,7 +53,7 @@ namespace UttuHub.API.Controllers
                 Email = dto.Email,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 ImageUrl = dto.ImageUrl,
-                isVerified = false
+                IsVerified = false
             };
 
             _context.Users.Add(user);
@@ -67,11 +69,13 @@ namespace UttuHub.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
 
             if (user == null) return Unauthorized("Invalid Email.");
 
-            if (!user.isVerified) return Unauthorized("Account not verified by Admin.");
+            if (!user.IsVerified) return Unauthorized("Account not verified by Admin.");
 
             bool isValid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
             if (!isValid) return Unauthorized("Invalid Password.");
@@ -87,7 +91,7 @@ namespace UttuHub.API.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound("User not found.");
 
-            user.isVerified = true;
+            user.IsVerified = true;
             await _context.SaveChangesAsync();
 
             return Ok(new { message = $"User {user.Name} has been verified successfully." });
@@ -108,7 +112,7 @@ namespace UttuHub.API.Controllers
                 Name = user.Name,
                 Email = user.Email,
                 ImageUrl = user.ImageUrl,
-                IsVerified = user.isVerified
+                IsVerified = user.IsVerified
             };
 
             return Ok(result);
@@ -126,7 +130,7 @@ namespace UttuHub.API.Controllers
                     Name = u.Name,
                     Email = u.Email,
                     ImageUrl = u.ImageUrl,
-                    IsVerified = u.isVerified
+                    IsVerified = u.IsVerified
                 })
                 .ToListAsync();
         }
@@ -150,7 +154,7 @@ namespace UttuHub.API.Controllers
                 return BadRequest("Email already exists.");
             }
 
-            // Update fields - isVerified intentionally NOT updatable here (use verify endpoint)
+            // Update fields - IsVerified intentionally NOT updatable here (use verify endpoint)
             user.Name = dto.Name;
             user.Email = dto.Email ?? user.Email;
             user.ImageUrl = dto.ImageUrl;
@@ -198,7 +202,10 @@ namespace UttuHub.API.Controllers
         // JWT Generator
         private string GenerateJwtToken(User user)
         {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"] ?? "A_Very_Long_BackUp_Secret_Key_32_Chars"));
+            var jwtKey = _configuration["Jwt:Key"];
+            if (string.IsNullOrWhiteSpace(jwtKey)) throw new InvalidOperationException("JWT key not configured. Set Jwt:Key in configuration or environment variables.");
+
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]

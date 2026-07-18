@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Http;
 using System.Text;
 using UttuHub.API.Data;
 
@@ -13,7 +15,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 var jwtKey = builder.Configuration["Jwt:Key"];
-var keyBytes = Encoding.UTF8.GetBytes(jwtKey ?? "A_Very_Long_BackUp_Secret_Key_32_Chars");
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException("JWT key not configured. Set Jwt:Key in configuration or environment variables.");
+}
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -67,6 +73,20 @@ builder.Services.AddSwaggerGen(opt =>
 });
 
 var app = builder.Build();
+
+// Global exception handler
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerFeature>();
+        var ex = exceptionHandlerPathFeature?.Error;
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new { error = "An unexpected error occurred." });
+        await context.Response.WriteAsync(result);
+    });
+});
 
 if (app.Environment.IsDevelopment())
 {
